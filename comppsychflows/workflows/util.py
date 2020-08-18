@@ -1,3 +1,5 @@
+from nipype.pipeline import engine as pe
+from nipype.interfaces import utility as niu
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces import CopyHeader
 from nipype.interfaces import afni
@@ -5,7 +7,7 @@ from sdcflows.workflows.pepolar import _fix_hdr
 from templateflow.api import get as get_template
 
 
-def init_qwarp_inversion_wf(omp_nthreads=1, matched_pe=False,
+def init_qwarp_inversion_wf(omp_nthreads=1,
                            name="qwarp_invert_wf"):
     """
     Invert a warp produced by 3dqwarp and convert it to an ANTS formatted warp
@@ -105,6 +107,7 @@ def init_apply_hmc_only_wf(mem_gb, omp_nthreads,
     from niworkflows.func.util import init_bold_reference_wf
     from niworkflows.interfaces.itk import MultiApplyTransforms
     from niworkflows.interfaces.nilearn import Merge
+    from nipype.interfaces.fsl import Split as FSLSplit
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
@@ -190,6 +193,8 @@ def init_backtransform_wf(mem_gb, omp_nthreads,
         template file to be transformed to bold space
     reference_image
         reference image for template space
+    dseg_file
+        deterministic parcelated file in template space to be transformed to bold space
     bold_file
         bold image to extract stats from
     transforms
@@ -213,7 +218,7 @@ def init_backtransform_wf(mem_gb, omp_nthreads,
     workflow = Workflow(name=name)
 
     inputnode = pe.Node(niu.IdentityInterface(fields=[
-        'template_file', 'reference_image', 'bold_file', 'transforms']),
+        'template_file', 'reference_image','dseg_file', 'bold_file', 'transforms']),
         name='inputnode'
     )
 
@@ -237,9 +242,6 @@ def init_backtransform_wf(mem_gb, omp_nthreads,
 
     resample_parc = pe.Node(ApplyTransforms(
         dimension=3,
-        input_image=str(get_template(
-            'MNI152NLin2009cAsym', resolution=1, desc='carpet',
-            suffix='dseg', extension=['.nii', '.nii.gz'])),
         interpolation='MultiLabel'),
         name='resample_parc', mem_gb=mem_gb, n_procs=omp_nthreads)
     
@@ -253,6 +255,7 @@ def init_backtransform_wf(mem_gb, omp_nthreads,
         (inputnode, resample_template, [('template_file', 'input_image')]),
         (inputnode, resample_template, [('reference_image', 'reference_image')]),
         (inputnode, resample_parc, [('reference_image', 'reference_image')]),
+        (inputnode, resample_parc, [('dseg_file', 'input_image')]),
         (inputnode, roi_stats, [('bold_file', 'in_file')]),
         (combine_transforms, resample_template, [('output_image', 'transforms')]),
         (combine_transforms, resample_parc, [('output_image', 'transforms')]),
