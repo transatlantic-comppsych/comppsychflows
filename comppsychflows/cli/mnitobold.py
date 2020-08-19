@@ -48,7 +48,7 @@ def main(args=None):
 
     fmriprep_dir = Path(opts.fmriprep_dir)
     fmriprep_odir = fmriprep_dir / 'out'
-    fmriprep_wdir = fmriprep_dir / 'wrk/wrk'
+    fmriprep_wdir = fmriprep_dir / 'wrk'
     mnitobold_dir = opts.out_path
     dseg_path = opts.dseg_path
     mni_image = opts.mni_image

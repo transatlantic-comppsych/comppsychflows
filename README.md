@@ -4,6 +4,10 @@ Our lab's repository of nipype interfaces and workflows. Obviously inspired by t
 Currently there is only one commandline script, comppsychflows-mnitobold
 
 ## comppsychflows-mnitobold
-Not implemented yet, but it will do the following:
-take a subject's bids directory and an fmriprep output
-produce a working directory with head motion corrected bold series and an MNI template and parcellation transformed to that space with the suceptibility distortion correction transformation.
+* Takes as input a subject's bids directory and an fmriprep output
+* Produces a working directory with:
+  * Head motion corrected bold series
+  * MNI template and parcellation transformed to the space of the HMC bold series using the suceptibility distortion correction transformation if available
+  * Stats on each ROI for each TR in the bold series
+
+An [example](notebook/example_of_running_mnitobids_on_swarmp.ipynb) of running comppsychflows-mnitobold on the NIH HPC's swarm system is also available.
