@@ -10,4 +10,4 @@ Currently there is only one commandline script, comppsychflows-mnitobold
   * MNI template and parcellation transformed to the space of the HMC bold series using the suceptibility distortion correction transformation if available
   * Stats on each ROI for each TR in the bold series
 
-An [example](notebook/example_of_running_mnitobids_on_swarmp.ipynb) of running comppsychflows-mnitobold on the NIH HPC's swarm system is also available.
+An [example](notebook/example_of_running_mnitobold_on_swarmp.ipynb) of running comppsychflows-mnitobold on the NIH HPC's swarm system is also available.
