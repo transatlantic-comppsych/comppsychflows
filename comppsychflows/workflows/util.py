@@ -267,3 +267,123 @@ def init_backtransform_wf(mem_gb, omp_nthreads,
     ])
     
     return workflow
+
+def init_scale_wf(mem_gb, omp_nthreads, n_dummy=None, scale_stat='mean',
+                               name='scale'):
+    """
+    Run afni's voxel level mean scaling
+    Parameters
+    ----------
+    mem_gb : :obj:`float`
+        Size of BOLD file in GB
+    omp_nthreads : :obj:`int`
+        Maximum number of threads an individual process may use
+    n_dummy: :obj: `int`
+        Number of dummy scans at the begining of the bold to discard when calculating the mean
+    scale_stat : :obj:`str`
+        Name of the flag for the statistic to scale relative to (defaul: ``mean``) 
+    name : :obj:`str`
+        Name of workflow (default: ``bold_std_trans_wf``)
+    Inputs
+    ------
+    bold_file
+        bold image to scale, should probably be head motion corrected first
+    Outputs
+    -------
+    scaled
+        scaled bold time series
+    """
+    from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+    from nipype.interfaces.afni import Calc
+    from ..interfaces.afni import TStat 
+    
+    workflow = Workflow(name=name)
+
+    inputnode = pe.Node(niu.IdentityInterface(fields=[
+        'bold_file']),
+        name='inputnode'
+    )
+
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['scaled']),
+        name='outputnode')
+
+    scale_ref = pe.Node(
+        TStat(args=f'-{scale_stat}', index=f'[{n_dummy}..$]', outputtype='NIFTI_GZ'),
+        name='scale_ref', mem_gb=mem_gb, n_procs=omp_nthreads)
+
+    scale = pe.Node(
+        Calc(outputtype='NIFTI_GZ', expr='min(200, a/b*100)*step(a)*step(b)'),
+        name='scale', mem_gb=mem_gb, n_procs=omp_nthreads)
+    
+    workflow.connect([
+        (inputnode, scale_ref, [('bold_file', 'in_file')]),
+        (inputnode, scale, [('bold_file', 'in_file_a')]),
+        (scale_ref, scale, [('out_file', 'in_file_b')]),
+        (scale, outputnode, [('out_file', 'scaled')])
+    ])
+    
+    return workflow
+
+def init_getstats_wf(mem_gb, omp_nthreads, n_dummy=0, stat='cvarinvNOD',name='getstats'):
+    """
+    Run some 3dtstat (tsnr by default) and save out roi level stats
+    Parameters
+    ----------
+    mem_gb : :obj:`float`
+        Size of BOLD file in GB
+    omp_nthreads : :obj:`int`
+        Maximum number of threads an individual process may use
+    n_dummy: :obj: `int`
+        Number of dummy scans at the begining of the bold to discard when calculating the mean
+    scale_stat : :obj:`str`
+        Name of the flag for the statistic to extract (defaul: ``tsnr``) 
+    name : :obj:`str`
+        Name of workflow (default: ``tsnrstats_wf``)
+    Inputs
+    ------
+    bold_file
+        bold image to get tsnr from, should probably be head motion corrected first
+    dseg_file
+        deterministic parcelated file in template space to be transformed to bold space
+    Outputs
+    -------
+    stat_image
+        scaled bold time series
+    roi_stats
+        stats on each roi from each tr
+    """ 
+    from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+    from ..interfaces.afni import TStat
+    from nipype.interfaces.afni.preprocess import ROIStats
+
+    workflow = Workflow(name=name)
+
+    inputnode = pe.Node(niu.IdentityInterface(fields=[
+        'bold_file', 'dseg_file']),
+        name='inputnode'
+    )
+
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['stat_image',
+                                      'roi_stats',
+                                      ]),
+        name='outputnode')
+
+    getstat = pe.Node(
+        TStat(options=f'-{stat}', index=f'[{n_dummy}..$]', outputtype='NIFTI_GZ'),
+        name='getstat', mem_gb=mem_gb, n_procs=omp_nthreads)
+
+    roi_stats = pe.Node(ROIStats(stat=['sum', 'voxels']),
+                   name='roi_stats', mem_gb=mem_gb, n_procs=omp_nthreads)
+
+    workflow.connect([
+        (inputnode, getstat, [('bold_file', 'in_file')]),
+        (inputnode, roi_stats, [('dseg_file', 'mask_file')]),
+        (getstat, roi_stats, [('out_file', 'in_file')]),
+        (getstat, outputnode, [('out_file', 'stat_image')]),
+        (roi_stats, outputnode, [('out_file', 'roi_stats')])
+    ])
+    return workflow
