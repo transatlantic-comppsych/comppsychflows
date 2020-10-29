@@ -46,11 +46,13 @@ def roi_grand_std(in_file, dseg_file, out_file=None):
     from nilearn._utils import check_niimg_4d
     import pandas as pd
     import os
+    
+    n_dummy=4
     if out_file is None:
         out_file = os.getcwd() + '/grand_std.csv'
     atlaslabels = nli.load_img(dseg_file).get_fdata()
     img_nii = check_niimg_4d(in_file, dtype="auto",)
-    func_data = nli.load_img(img_nii).get_fdata()
+    func_data = nli.load_img(img_nii).get_fdata()[:,:,:,n_dummy:]
     ntsteps = func_data.shape[-1]
     data = func_data[atlaslabels > 0].reshape(-1, ntsteps)
     oseg = atlaslabels[atlaslabels > 0].reshape(-1)
@@ -78,14 +80,17 @@ def main(args=None):
     import json
     from pathlib import Path
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from nipype import Function
     from nipype.pipeline import engine as pe
     from nipype.interfaces import utility as niu
     from nipype.utils.filemanip import hash_infile
-    from ..workflows.util import init_qwarp_inversion_wf
-    from ..workflows.util import init_apply_hmc_only_wf
-    from ..workflows.util import init_backtransform_wf
-    from ..workflows.util import init_getstats_wf
-    from ..interfaces.afni import TStat 
+    from comppsychflows.workflows.util import init_qwarp_inversion_wf
+    from comppsychflows.workflows.util import init_apply_hmc_only_wf
+    from comppsychflows.workflows.util import init_backtransform_wf
+    from comppsychflows.workflows.util import init_scale_wf
+    from comppsychflows.workflows.util import init_getstats_wf
+    from nipype.interfaces.afni.preprocess import ROIStats
+    from nipype.interfaces.io import DataSink
 
     opts = get_parser().parse_args(args=args)
 
@@ -93,6 +98,8 @@ def main(args=None):
     fmriprep_odir = fmriprep_dir / 'out'
     fmriprep_wdir = fmriprep_dir / 'wrk'
     mnitobold_dir = opts.out_path
+    mnitobold_wdir = (Path(mnitobold_dir) / 'wrk')
+    mnitobold_odir = (Path(mnitobold_dir) / 'out')
     dseg_path = opts.dseg_path
     mni_image = opts.mni_image
     omp_nthreads = opts.omp_nthreads
